@@ -1,0 +1,25 @@
+# docker compose -f docker-compose-dev.yml up
+
+version: "3.1"
+
+# secrets:
+#     my_secret:
+#      file: ./my_secret.txt
+
+services:
+  app:
+    build: .
+    container_name: Nightscout-SisensingCGM-Uploader
+    environment:
+      PYTHONUNBUFFERED: 1
+      # ss_region: CN
+      # uploader_interval: 5
+      # uploader_max_entries: 0
+      ns_url: https://nightscout.url/
+      ss_token: abcd1234
+      ns_api_secret: abcd1234
+    command: python -u ./package/main.py --reload
+    volumes:
+      - .:/app
+    # secrets:
+    #   - my_secret

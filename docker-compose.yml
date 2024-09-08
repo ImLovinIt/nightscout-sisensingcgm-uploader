@@ -1,0 +1,14 @@
+# docker compose up
+
+version: "3.1"
+
+services:
+  app:
+    build: .
+    container_name: nightscout-sisensingcgn-uploader
+    environment:
+      PYTHONUNBUFFERED: 1
+      ns_url: https://nightscout.URL/
+    command: python -u ./package/main.py
+    volumes:
+      - .:/app
