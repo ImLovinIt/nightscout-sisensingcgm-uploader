@@ -18,7 +18,7 @@ services:
       ns_url: https://nightscout.url/
       ss_token: abcd1234
       ns_api_secret: abcd1234
-    command: python -u ./package/main.py --reload
+    command: python -u package/main.py --reload
     volumes:
       - .:/app
     # secrets:
