@@ -5,10 +5,9 @@ version: "3.1"
 services:
   app:
     build: .
-    container_name: nightscout-sisensingcgn-uploader
+    container_name: nightscout-sisensingcgm-uploader
     environment:
       PYTHONUNBUFFERED: 1
-      ns_url: https://nightscout.URL/
-    command: python -u ./package/main.py
+    command: python -u package/main.py
     volumes:
       - .:/app

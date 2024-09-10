@@ -10,6 +10,8 @@ def main():
 # get last entry date
     try:
         ns_last_date = get_last_entry_date(ns_header)
+        if ns_last_date == "":
+             ns_last_date=0
     except Exception as error:
             print("Error requesting from Nightscout:", error)
 

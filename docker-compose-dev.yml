@@ -9,7 +9,7 @@ version: "3.1"
 services:
   app:
     build: .
-    container_name: Nightscout-SisensingCGM-Uploader
+    container_name: nightscout-sisensingcgm-uploader
     environment:
       PYTHONUNBUFFERED: 1
       # ss_region: CN
