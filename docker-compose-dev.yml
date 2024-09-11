@@ -12,14 +12,9 @@ services:
     container_name: nightscout-sisensingcgm-uploader
     environment:
       PYTHONUNBUFFERED: 1
-      # ss_region: CN
-      # uploader_interval: 5
-      # uploader_max_entries: 0
-      ns_url: https://nightscout.url/
-      ss_token: abcd1234
-      ns_api_secret: abcd1234
     command: python -u package/main.py --reload
     volumes:
       - .:/app
     # secrets:
     #   - my_secret
+   

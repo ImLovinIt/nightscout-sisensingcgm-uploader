@@ -12,6 +12,8 @@ COPY requirements.txt .
 #install dependencies
 RUN pip install -r requirements.txt
 
+ENV PYTHONUNBUFFERED 1
+
 COPY . .
 
-CMD ["python","./package/main.py"]
+CMD ["python","package/main.py"]
