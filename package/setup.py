@@ -41,10 +41,10 @@ try:
 except:
     uploader_max_entries = 0
 
-# # get secrects
-# client = docker.from_env()
-# ss_token = client.secrets.get('ss_token')
-# ns_api_secret = client.secrets.get('ns_api_secret')
+try:
+    uploader_all_data = bool(os.environ['uploader_all_data'])
+except:
+    uploader_all_data = False
 
 #API URL
 region_list = ["CN","EU"]

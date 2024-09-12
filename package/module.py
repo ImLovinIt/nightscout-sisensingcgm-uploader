@@ -24,11 +24,15 @@ def get_last_entry_date(header):
     try:
         data = r.json()
         print("Nightscout request", r.status_code , r.reason)
-        print("Last entry date" , data[0]["date"] ,"GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000))
+        if data == []:
+            print("no data")
+            return 0
+        else:
+            print("Last entry date" , data[0]["date"] ,"GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000))
+            return data[0]["date"]
     except requests.JSONDecodeError:
         content_type = r.headers.get('Content-Type')
         print("Failed. Content Type " + content_type)
-    return data[0]["date"]
 
 # process Sisensing data
 def get_ss_entries(header):
@@ -75,7 +79,7 @@ def process_json_data_prepare_json(item,last_date,count,list_dict): # item type 
             #
             if uploader_max_entries !=0 and count >= uploader_max_entries:
                 break
-            if j["t"]>last_date:
+            if j["t"]>last_date or uploader_all_data==True:
                 entry_dict = {
                     "type" : "sgv",
                     "sgv" : convert_mmoll_to_mgdl(j["v"]),
