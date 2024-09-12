@@ -13,7 +13,7 @@ The script takes the following environment variables
 | ns_api_secret            | SHA1 Hash of Nightscout access toke                                                                                        | 162f14de46149447c3338a8286223de407e3b2fa | X        |
 | uploader_interval        | The time interval of requesting values from Sisensing. Default to 5 mins as Sisensing CGM only uploads every 5 mins.       | 5                                        |          |
 | uploader_max_entries     | Maximum number of entries to upload everytime. 0 to disable.                                                               | 0                                        |          |
-| uploader_all_data        | Upload all available data. (NOT IMPLEMENTED YET)                                                                           | False                                    |          |
+| uploader_all_data        | Upload all available data.                                                                                                 | False                                    |          |
 
 
 ## IMPORTANT for Azure free tier users
@@ -24,7 +24,8 @@ https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/prevent-rate-limiting-
 - Register and run your Sisensing (SiBionics) app on mobile phone first.
 - Install a packet capture app on your mobile. eg. Http traffic capture for iOS. PCAPdroid for andriod.
 - Install the required certificate per the packet capture app instruction.
-- Scan Sisensing app to find the `bearer token` from the relevant https request.
+- Scan Sisensing app.
+- Under `Request header`, find `Authorization:Bearer ...`. "`...`" is your `ss_token`.
 - If Sisensing app is reinstalled, you may need to repeat the above step.
 
 ## Hashing Nightscout API token
