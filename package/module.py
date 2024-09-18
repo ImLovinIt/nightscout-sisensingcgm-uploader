@@ -28,7 +28,7 @@ def get_last_entry_date(header):
             print("no data")
             return 0
         else:
-            print("Last entry date" , data[0]["date"] ,"GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000))
+            print("Last entry date:" , data[0]["date"] ,"(GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000),")")
             return data[0]["date"]
     except requests.JSONDecodeError:
         content_type = r.headers.get('Content-Type')
@@ -98,6 +98,7 @@ def process_json_data_prepare_json(item,last_date,count,list_dict): # item type 
 def process_json_data(data,last_date):
     count = 0
     list_dict = []
+    print("Processing data...")
     try:
         if type(data["data"]["glucoseDataList"]) == list:
             for i in data["data"]["glucoseDataList"]:
@@ -122,7 +123,7 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
     r=requests.post(ns_url+"api/v1/entries", headers = header, json = entries_json)
     if r.status_code == 200:
         print("Nightscout POST request", r.status_code , r.reason)
-        print(n, "entries uploaded")
+        print(n, "entries uploaded.")
     else:
         print("Nightscout POST request", r.status_code , r.reason, r.text)
 
