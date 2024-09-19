@@ -20,7 +20,7 @@ def convert_mgdl_to_mmoll(x):
 
 # return last entry date. (Slice allows searching for modal times of day across days and months.)
 def get_last_entry_date(header):
-    r=requests.get(ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1", headers=header)
+    r=requests.get(ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1", headers=header, timeout=5)
     try:
         data = r.json()
         print("Nightscout request", r.status_code , r.reason)
@@ -36,7 +36,7 @@ def get_last_entry_date(header):
 
 # process Sisensing data
 def get_ss_entries(header):
-    r=requests.get(return_ss_url(ss_region.upper()), headers=ss_header)
+    r=requests.get(return_ss_url(ss_region.upper()), headers=ss_header, timeout=5)
     try:
         data = r.json()
         print("Sisensing Response Status:" , r.status_code , r.reason)
@@ -120,7 +120,7 @@ def process_json_data(data,last_date):
     
 
 def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
-    r=requests.post(ns_url+"api/v1/entries", headers = header, json = entries_json)
+    r=requests.post(ns_url+"api/v1/entries", headers = header, json = entries_json, timeout=5)
     if r.status_code == 200:
         print("Nightscout POST request", r.status_code , r.reason)
         print(n, "entries uploaded.")
@@ -129,7 +129,7 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
 
 # return query entry date. (Slice allows searching for modal times of day across days and months.)
 def get_query_entry_date(query_date,header):
-    r=requests.get(ns_url+"/api/v1/slice/entries/dateString/sgv/"+query_date+".*", headers=header)
+    r=requests.get(ns_url+"/api/v1/slice/entries/dateString/sgv/"+query_date+".*", headers=header, timeout=5)
     try:
         data = r.json()
         print("Nightscout request", r.status_code , r.reason)
