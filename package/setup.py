@@ -1,6 +1,5 @@
 import os
 import sys
-# import docker
 
 # Initilisation for local python script
 # ss_token = ""
@@ -69,3 +68,7 @@ ss_header = {"Authorization":ss_token,
              "Content-Type": "application/json",
              "Accept":"application/json",
              }
+
+# urllib3 initialisation
+retries=5
+timeout=5

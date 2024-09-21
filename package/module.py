@@ -1,7 +1,6 @@
 from setup import *
-import requests
+import urllib3
 import json
-import pprint
 import datetime
 
 def return_ss_url(ss_region):
@@ -18,32 +17,35 @@ def convert_mmoll_to_mgdl(x):
 def convert_mgdl_to_mmoll(x):
     return round(x/ns_unit_convert, 1)
 
+
 # return last entry date. (Slice allows searching for modal times of day across days and months.)
 def get_last_entry_date(header):
-    r=requests.get(ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1", headers=header, timeout=5)
+    url = ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1"
+    r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
+    # print(r.status,r.reason,json.loads(r.data))
     try:
-        data = r.json()
-        print("Nightscout request", r.status_code , r.reason)
+        data = json.loads(r.data)
+        print("Nightscout request", r.status , r.reason)
         if data == []:
             print("no data")
             return 0
         else:
-            print("Last entry date:" , data[0]["date"] ,"(GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000),")")
+            print("Last entry date:" , data[0]["date"] ,"( GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000),")")
             return data[0]["date"]
-    except requests.JSONDecodeError:
+    except json.JSONDecodeError:
         content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type " + content_type)
+        print("Failed. Content Type" + content_type)
 
 # process Sisensing data
 def get_ss_entries(header):
-    r=requests.get(return_ss_url(ss_region.upper()), headers=ss_header, timeout=5)
+    url = return_ss_url(ss_region.upper())
+    r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
     try:
-        data = r.json()
-        print("Sisensing Response Status:" , r.status_code , r.reason)
-        #pprint.pprint(r.json(), compact=True)
-    except requests.JSONDecodeError:
+        data = json.loads(r.data)
+        print("Sisensing Response Status:" , r.status, r.reason)
+    except json.JSONDecodeError:
         content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type " , content_type)
+        print("Failed. Content Type" , content_type)
     return data
 
 def process_json_data_direction(i):
@@ -120,22 +122,11 @@ def process_json_data(data,last_date):
     
 
 def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
-    r=requests.post(ns_url+"api/v1/entries", headers = header, json = entries_json, timeout=5)
-    if r.status_code == 200:
-        print("Nightscout POST request", r.status_code , r.reason)
+    url = ns_url+"api/v1/entries"
+    r = urllib3.request("POST", url=url,headers=header, json = entries_json, retries=retries, timeout=timeout)
+    if r.status == 200:
+        print("Nightscout POST request", r.status, r.reason)
         print(n, "entries uploaded.")
     else:
-        print("Nightscout POST request", r.status_code , r.reason, r.text)
-
-# return query entry date. (Slice allows searching for modal times of day across days and months.)
-def get_query_entry_date(query_date,header):
-    r=requests.get(ns_url+"/api/v1/slice/entries/dateString/sgv/"+query_date+".*", headers=header, timeout=5)
-    try:
-        data = r.json()
-        print("Nightscout request", r.status_code , r.reason)
-        print("Last entry date" , data[0]["date"] ,"GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000))
-    except requests.JSONDecodeError:
-        content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type " + content_type)
-    return data[0]["date"]
+        print("POST Failed.", r.status, r.reason)
 
