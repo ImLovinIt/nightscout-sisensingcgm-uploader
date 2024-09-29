@@ -17,25 +17,7 @@ def convert_mmoll_to_mgdl(x):
 def convert_mgdl_to_mmoll(x):
     return round(x/ns_unit_convert, 1)
 
-
-# return last entry date. (Slice allows searching for modal times of day across days and months.)
-def get_last_entry_date(header):
-    url = ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1"
-    r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
-    # print(r.status,r.reason,json.loads(r.data))
-    try:
-        data = json.loads(r.data)
-        print("Nightscout request", r.status , r.reason)
-        if data == []:
-            print("no data")
-            return 0
-        else:
-            print("Last entry date:" , data[0]["date"] ,"( GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000),")")
-            return data[0]["date"]
-    except json.JSONDecodeError:
-        content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type" + content_type)
-
+# Sisensing API
 # process Sisensing data
 def get_ss_entries(header):
     url = return_ss_url(ss_region.upper())
@@ -47,6 +29,26 @@ def get_ss_entries(header):
         content_type = r.headers.get('Content-Type')
         print("Failed. Content Type" , content_type)
     return data
+
+# Nightscout API v1
+# Nightscout entries
+# return last entry date. (Slice allows searching for modal times of day across days and months.)
+def get_last_entry_date(header):
+    url = ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1"
+    r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
+    # print(r.status,r.reason,json.loads(r.data))
+    try:
+        data = json.loads(r.data)
+        print("Nightscout get last entry date:", r.status , r.reason)
+        if data == []:
+            print("Last entry date: no data")
+            return 0
+        else:
+            print("Last entry date:", data[0]["date"] ,"( GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000),")")
+            return data[0]["date"]
+    except json.JSONDecodeError:
+        content_type = r.headers.get('Content-Type')
+        print("Failed. Content Type" + content_type)
 
 def process_json_data_direction(i):
     try:
@@ -74,8 +76,8 @@ def process_json_data_direction(i):
 #  "dateString": "2024-09-02T03:27:14.000Z"
 # }
 
-# ADD CODE FOR MISSING DATA
-def process_json_data_prepare_json(item,last_date,count,list_dict): # item type = dict
+
+def process_json_data_prepare_entries(item,last_date,count,list_dict): # item type = dict
     try:
         for j in item["glucoseInfos"]:
             #
@@ -104,9 +106,9 @@ def process_json_data(data,last_date):
     try:
         if type(data["data"]["glucoseDataList"]) == list:
             for i in data["data"]["glucoseDataList"]:
-                count,list_dict = process_json_data_prepare_json(i,last_date,count,list_dict)
+                count,list_dict = process_json_data_prepare_entries(i,last_date,count,list_dict)
         elif type(data["data"]["glucoseDataList"]) == dict:
-            count,list_dict = process_json_data_prepare_json(i,last_date,count,list_dict)
+            count,list_dict = process_json_data_prepare_entries(i,last_date,count,list_dict)
         else:
             print(type(data["data"]["glucoseDataList"]), " recieved. Check API content.")
     except Exception as error:
@@ -125,8 +127,45 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
     url = ns_url+"api/v1/entries"
     r = urllib3.request("POST", url=url,headers=header, json = entries_json, retries=retries, timeout=timeout)
     if r.status == 200:
-        print("Nightscout POST request", r.status, r.reason)
+        print("Nightscout post entries:", r.status, r.reason)
         print(n, "entries uploaded.")
     else:
         print("POST Failed.", r.status, r.reason)
 
+# Nightscout treatment
+# get last sensor start date
+def get_last_treatment_sensorstart_date(header):
+    url = ns_url+"api/v1/treatments.json?count=1&find[eventType]=Sensor Start&find[enteredBy]="+ns_uploder+"&find[created_at][$gte]=1970"
+    r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
+    # print(r.status,r.reason,json.loads(r.data))
+    try:
+        data = json.loads(r.data)
+        print("Nightscout get last sensor start date:", r.status , r.reason)
+        if data == []:
+            print("Last sensor date: no data")
+            return "0"
+        else:
+            print("Last sensor date:", data[0]["created_at"])
+            return data[0]["created_at"]
+    except json.JSONDecodeError:
+        content_type = r.headers.get('Content-Type')
+        print("Failed. Content Type" + content_type)
+
+def process_json_data_prepare_treatment_sensorstart(item,last_date,count,list_dict): # item type = dict
+    try:
+        if uploader_max_entries !=0 and count >= uploader_max_entries:
+            return
+        if item["GlucoseEntryDateTime"]>last_date or uploader_all_data==True:
+            entry_dict = {
+                "eventType": "BG Check",
+                "created_at": datetime.datetime.fromisoformat(item["GlucoseEntryDateTime"]).isoformat(timespec="milliseconds")+"Z",
+                "glucose": item["GlucoseLevel"],
+                "glucoseType": "Finger",
+                "units": "mmol",
+                "enteredBy": ns_uploder,
+            }
+            list_dict.append(entry_dict)
+            count +=1
+        return count,list_dict
+    except Exception as error:
+        print("Error processing BloodGlucose:", error)

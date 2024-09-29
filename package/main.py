@@ -26,10 +26,16 @@ def main():
 
     # process Sisensing data and upload to Nightscout
     try:
-        # add code to verify ns_last_date
         process_json_data(ss_data,ns_last_date)
     except Exception as error:
         print("Error reading direction:", error)
+
+    # get last treatment sensor start date from Nightscout
+    if uploader_sensorstart:
+        try:
+            last_treatment_sensorstart_date = get_last_treatment_sensorstart_date(ns_header)
+        except Exception as error:
+            print("Error reading sensor start date:", error)
 
     # adjust scheduler to match Sisensing upload time pattern
     time_at_now = round(datetime.datetime.now().timestamp()) #timestamp

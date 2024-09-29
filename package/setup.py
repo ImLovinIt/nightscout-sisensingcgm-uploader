@@ -6,6 +6,7 @@ import sys
 # ss_region = "CN"
 # ns_url = ""
 # ns_api_secret= "" #api_secret
+# uploader_sensorstart = False
 # uploader_interval = 5 #mins
 # uploader_max_entries = 0 # 0 to disable.
 
@@ -31,6 +32,11 @@ except:
     sys.exit("ns_api_secret required. Pass it as an Environment Variable.")
 
 try:
+    uploader_sensorstart = int(os.environ['uploader_sensorstart'])
+except:
+    uploader_sensorstart = False
+
+try:
     uploader_interval = int(os.environ['uploader_interval'])
 except:
     uploader_interval = 5
@@ -44,6 +50,24 @@ try:
     uploader_all_data = bool(os.environ['uploader_all_data'])
 except:
     uploader_all_data = False
+
+try:
+    retries = int(os.environ['retries'])
+except:
+    retries = 5
+
+try:
+    timeout = int(os.environ['timeout'])
+except:
+    timeout = 5
+
+try:
+    if os.environ['uploader_sensorstart'].lower() == "true":
+        uploader_sensorstart = True
+    else:
+        uploader_sensorstart = False
+except:
+    uploader_sensorstart = False
 
 #API URL
 region_list = ["CN","EU"]
@@ -68,7 +92,3 @@ ss_header = {"Authorization":ss_token,
              "Content-Type": "application/json",
              "Accept":"application/json",
              }
-
-# urllib3 initialisation
-retries=5
-timeout=5
