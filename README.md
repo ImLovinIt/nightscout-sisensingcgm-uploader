@@ -39,7 +39,7 @@ https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/prevent-rate-limiting-
 - Install a packet capture app on your spare phone. eg. Http traffic capture for iOS. PCAPdroid for andriod.
 - Install the required certificate as per the packet capture app instructions.
 - Scan Sisensing app on your spare phone.
-- Find an entry with API address that looks like this `https://api.sisensing.com/follow/app/follow/1234567890/glucose` for A4 (14 days) models or `https://api.sisensing.com/lite-sense-app/follow/info?followId=1234567890` for the 18 months model.
+- Find an entry with API address that looks like this `https://api.sisensing.com/follow/app/follow/1234567890/glucose` for A4 (14 days) models or `https://api.sisensing.com/lite-sense-app/follow/info?followId=1234567890` for the 18 months model. This is your `ss_url`.
 - Under `Response` json file, you should see a list of glucose entries. Congrats. You find the correct one.
 - Under `Request header`, find `Authorization:Bearer abcd...1234`. `abcd...1234` is your `ss_token`.
 - If Sisensing app is reinstalled or logged in on another device with the same phone number, you may need to repeat the above step.
@@ -59,13 +59,11 @@ which will print the hash (40 characters in length):
 ```
 You might also use an online tool to generate your hash, e.g. https://codebeautify.org/sha1-hash-generator
 
+Credit to https://github.com/timoschlueter/nightscout-librelink-up
+
 ## Deployment - Docker
 
 Docker Hub
 https://hub.docker.com/r/imlovinit1019/nightscout-sisensingcgm-uploader
 
 * **API secret and token are passed as Environment Variables.** If you have security concerns, please stop using this script or fork this repository to make improvements. (Docker swarm mode may be required to use secrets.)
-
-
-## Credit
-Inspired by https://github.com/timoschlueter/nightscout-librelink-up
