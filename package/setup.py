@@ -3,12 +3,15 @@ import sys
 # import docker
 
 # Initilisation for local python script
+# ss_url = ""
 # ss_token = ""
-# ss_region = "CN"
 # ns_url = ""
 # ns_api_secret= "" #api_secret
 # uploader_interval = 5 #mins
 # uploader_max_entries = 0 # 0 to disable.
+# uploader_all_data = False
+# retries = 10
+# timeout = 10
 
 # Initilisation for docker & ENV parameters overwrite
 try:

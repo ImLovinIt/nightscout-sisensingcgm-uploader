@@ -35,8 +35,8 @@ def recursively_flatten_list(x):
         return recursively_flatten_list(x[0]) + recursively_flatten_list(x[1:])
     return x[:1] + recursively_flatten_list(x[1:])
 
-file_path = 'test/response_14d.json'
-#file_path = 'test/response_18m.json'
+#file_path = 'test/response_14d.json'
+file_path = 'test/response_18m_2.json'
 with open(file_path, encoding="utf8") as f:
     d = json.load(f)
     #print(d)
