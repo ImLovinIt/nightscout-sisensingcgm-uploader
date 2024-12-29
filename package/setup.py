@@ -12,14 +12,14 @@ import sys
 
 # Initilisation for docker & ENV parameters overwrite
 try:
+    ss_url = str(os.environ['ss_url'])
+except:
+    sys.exit("ss_url required. Pass it as an Environment Variable.")
+
+try:
     ss_token = str(os.environ['ss_token'])
 except:
     sys.exit("ss_token required. Pass it as an Environment Variable.")
-
-try:
-    ss_region = str(os.environ['ss_region'])
-except:
-    ss_region = "CN"
 
 try:
     ns_url = str(os.environ['ns_url'])
@@ -45,13 +45,6 @@ try:
     uploader_all_data = bool(os.environ['uploader_all_data'])
 except:
     uploader_all_data = False
-
-#API URL
-region_list = ["CN","EU"]
-if ss_region.upper() not in region_list:
-    sys.exit(ss_region, "not found.")
-region_cn = "https://api.sisensing.com/follow/app/follow/myself/glucose/details/devices"
-region_eu = "https://cgm-ce.sisensing.com/user/app/follow/sharer"
 
 # uploader initialisation
 ns_uploder = "Nightscout-Sisensing-Uploader"
