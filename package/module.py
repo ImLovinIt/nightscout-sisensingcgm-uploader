@@ -138,14 +138,14 @@ def process_json_data(data,last_date):
         list_data = recursively_flatten_list(recursively_get_glucoseinfos(data,'glucoseInfos'))
         if len(list_data) > 0:
             list_dict = process_json_data_prepare_json(list_data,last_date,list_dict)
+        else:
+            print("Glucose info list empty. Set up a CGM to start.")
     except Exception as error:
         print("Error reading glucose data from response json:", error)
     # finally:
     #     print(str(count) + " entries read")
 
-    if len(list_dict) == 0:
-        print("Glucose info list empty. Set up a CGM to start.")
-    elif len(list_dict) > 0:
+    if len(list_dict) > 0:
         print("Uploading", len(list_dict), "entry(ies)...")
         upload_json = json.loads(json.dumps(list_dict))
         upload_entry(upload_json,ns_header,len(list_dict))
