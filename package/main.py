@@ -39,8 +39,15 @@ def main():
     time_ss_mod = (ns_last_date/1000)%(uploader_interval*60)
     #print(time_ss_mod)
 
-    time_next_run = time_at_now - time_at_now%(uploader_interval*60) + uploader_interval*60 + time_ss_mod
-    print("Next run scheduled:", datetime.datetime.fromtimestamp(time_next_run))
+    time_delay = 15 # seconds delay to allow data sync on server
+ 
+    #print(time_at_now%(uploader_interval*60),time_ss_mod)
+
+    if time_at_now%(uploader_interval*60) >= time_ss_mod:
+        time_next_run = time_at_now - time_at_now%(uploader_interval*60) + uploader_interval*60 + time_ss_mod + time_delay
+    else:
+        time_next_run = time_at_now - time_at_now%(uploader_interval*60) + time_ss_mod + time_delay
+    print("Next run scheduled: GMT", datetime.datetime.fromtimestamp(time_next_run))
 
     time_next_run_delay = time_next_run - time_at_now
     #print(time_next_run_delay)

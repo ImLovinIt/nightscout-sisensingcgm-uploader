@@ -149,7 +149,7 @@ def process_json_data(data,last_date):
         print("Uploading", len(list_dict), "entry(ies)...")
         upload_json = json.loads(json.dumps(list_dict))
         upload_entry(upload_json,ns_header,len(list_dict))
-    else:
+    elif len(list_dict) == 0:
         print("No new entry found.")
     
 
@@ -157,7 +157,7 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
     r=requests.post(ns_url+"api/v1/entries", headers = header, json = entries_json)
     if r.status_code == 200:
         print("Nightscout POST request", r.status_code , r.reason)
-        print(n, "entries uploaded.")
+        print(n, "entry(ies) uploaded.")
     else:
         print("Nightscout POST request", r.status_code , r.reason, r.text)
 
