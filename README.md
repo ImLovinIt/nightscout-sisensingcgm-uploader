@@ -12,8 +12,10 @@ Model Tested:
 - A4 2024-05 (Second model. Single packaging)
 
 App Tested:
-- 硅基动感![image](https://github.com/user-attachments/assets/3d00d476-090c-4e64-9dbf-d3a9e694c998)
 
+<img src="https://github.com/user-attachments/assets/3d00d476-090c-4e64-9dbf-d3a9e694c998" width="96">
+
+<em>硅基动感</em>
 
 
 ## Configuration
