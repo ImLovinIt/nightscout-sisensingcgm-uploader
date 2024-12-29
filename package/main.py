@@ -1,6 +1,5 @@
 from setup import *
 from module import *
-import requests # pip install
 import json
 import sched,time
 

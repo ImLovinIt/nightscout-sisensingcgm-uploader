@@ -46,6 +46,24 @@ try:
 except:
     uploader_all_data = False
 
+try:
+    retries = int(os.environ['retries'])
+except:
+    retries = 10
+
+try:
+    timeout = int(os.environ['timeout'])
+except:
+    timeout = 10
+
+try:
+    if os.environ['uploader_sensorstart'].lower() == "true":
+        uploader_sensorstart = True
+    else:
+        uploader_sensorstart = False
+except:
+    uploader_sensorstart = False
+
 # uploader initialisation
 ns_uploder = "Nightscout-Sisensing-Uploader"
 ns_unit_convert = 18.018
