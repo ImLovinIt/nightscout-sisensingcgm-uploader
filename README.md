@@ -17,7 +17,6 @@ App Tested:
 
 <em>硅基动感</em>
 
-
 ## Configuration
 The script takes the following environment variables
 | Variable                 | Description                                                                                                                | Example                                  | Required |
@@ -29,7 +28,8 @@ The script takes the following environment variables
 | uploader_interval        | The time interval of requesting values from Sisensing. Default to 5 mins as Sisensing CGM only uploads every 5 mins.       | 5                                        |          |
 | uploader_max_entries     | Maximum number of entries to upload everytime. 0 to disable.                                                               | 0                                        |          |
 | uploader_all_data        | Upload all available data.                                                                                                 | False                                    |          |
-
+| retries                  | Number of retries for API request. Default to 10.                                                                          | 10                                       |          |
+| timeout                  | Timeout for each retry. Default to 10.                                                                                     | 10                                       |          |
 
 ## IMPORTANT for Azure free tier users
 Enable `server side retry` to prevent rate-limiting errors for Azure Cosmos DB for MongoDB operations. Follow link below for details.
