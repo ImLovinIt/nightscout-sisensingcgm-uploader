@@ -97,13 +97,26 @@ def recursively_get_glucoseinfos(search_dict, field):
                         fields_found.append(another_result)
     return fields_found
 
-# recursive funtion to flatten nested list
+# recursive funtion to flatten nested list. NOT IN USE due to max recursion depth error.
 def recursively_flatten_list(x):
     if x == []:
         return x
     if isinstance(x[0], list):
         return recursively_flatten_list(x[0]) + recursively_flatten_list(x[1:])
     return x[:1] + recursively_flatten_list(x[1:])
+
+# flatten list, assuming Sisensing won't have nested glucoseInfos list.
+def flatten_list(x):
+    result = []
+    if x == []:
+        return x
+    for i in x:
+        if isinstance(i, list):
+            for j in i:
+                result.append(j)
+        else:
+            result.append(i)
+    return result
 
 # Proces individual glucose entry
 def process_json_data_prepare_entries(list_data,last_date,list_dict):
@@ -133,7 +146,7 @@ def process_json_data(data,last_date):
     list_dict = []
     print("Processing data...")
     try:
-        list_data = recursively_flatten_list(recursively_get_glucoseinfos(data,'glucoseInfos'))
+        list_data = flatten_list(recursively_get_glucoseinfos(data,'glucoseInfos'))
         if len(list_data) > 0:
             list_dict = process_json_data_prepare_entries(list_data,last_date,list_dict)
         else:
