@@ -9,39 +9,54 @@ def convert_mmoll_to_mgdl(x):
 def convert_mgdl_to_mmoll(x):
     return round(x/ns_unit_convert, 1)
 
+# utcfromtimestamp is deprecated from Python 3.12, so build an aware UTC
+# datetime instead. Nightscout wants a "Z" suffix rather than "+00:00".
+def to_utc_datetime(epoch_ms):
+    return datetime.datetime.fromtimestamp(epoch_ms/1000, datetime.timezone.utc)
+
+def to_ns_datestring(epoch_ms):
+    return to_utc_datetime(epoch_ms).isoformat(timespec='milliseconds').replace("+00:00", "Z")
+
 # return last entry date. (Slice allows searching for modal times of day across days and months.)
+# Returns an epoch in milliseconds, or None if the response could not be read.
 def get_last_entry_date(header):
     url = ns_url+"api/v1/slice/entries/dateString/sgv/.*/.*?count=1"
     r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
     # print(r.status,r.reason,json.loads(r.data))
     try:
         data = json.loads(r.data)
-        print("Nightscout get last entry date:", r.status , r.reason)
-        if data == []:
-            print("Last entry date: no data")
-            return 0
-        else:
-            print("Last entry date:", data[0]["date"] ,"( GMT",datetime.datetime.utcfromtimestamp(data[0]["date"]/1000),")")
-            return data[0]["date"]
     except json.JSONDecodeError:
-        content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type" + content_type)
+        print("Nightscout response was not JSON.", r.status, r.reason,
+              "Content Type", r.headers.get('Content-Type'))
+        return None
+
+    print("Nightscout get last entry date:", r.status , r.reason)
+    if data == []:
+        print("Last entry date: no data")
+        return 0
+    else:
+        print("Last entry date:", data[0]["date"] ,"(", to_utc_datetime(data[0]["date"]), ")")
+        return data[0]["date"]
 
 # process Sisensing data
+# Returns the parsed response, or None if it was unusable. Returning None keeps
+# the scheduler alive so a bad response only costs one run.
 def get_ss_entries(header):
     r = urllib3.request("GET", url=ss_url,headers=header, retries=retries, timeout=timeout)
     try:
         data = json.loads(r.data)
-        print("Sisensing Response Status:" , r.status, r.reason)
-
-        # Verify response json
-        print("Sisensing Json Code:", data["code"], data["msg"])
-        if data["code"] != 200:
-            print("Data invalid. Check your API URL and Bearer Token.")
-            quit()
     except json.JSONDecodeError:
-        content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type" , content_type)
+        print("Sisensing response was not JSON.", r.status, r.reason,
+              "Content Type", r.headers.get('Content-Type'))
+        return None
+
+    print("Sisensing Response Status:" , r.status, r.reason)
+
+    # Verify response json
+    print("Sisensing Json Code:", data.get("code"), data.get("msg"))
+    if data.get("code") != 200:
+        print("Data invalid. Check your API URL and Bearer Token.")
+        return None
     return data
 
 def process_json_data_direction(i):
@@ -119,12 +134,13 @@ def flatten_list(x):
     return result
 
 # Proces individual glucose entry
+# Catches per entry so one malformed reading does not discard the whole batch.
 def process_json_data_prepare_entries(list_data,last_date,list_dict):
-    try:
-        count = 0
-        for i in list_data:
-            if uploader_max_entries !=0 and count >= uploader_max_entries:
-                break
+    count = 0
+    for i in list_data:
+        if uploader_max_entries !=0 and count >= uploader_max_entries:
+            break
+        try:
             if i["t"]>last_date or uploader_all_data==True:
                 entry_dict = {
                     "type" : "sgv",
@@ -132,14 +148,13 @@ def process_json_data_prepare_entries(list_data,last_date,list_dict):
                     "direction" : process_json_data_direction(i["s"]),
                     "device": ns_uploder,
                     "date" : i["t"],
-                    "dateString": str(datetime.datetime.utcfromtimestamp(i["t"]/1000).isoformat(timespec='milliseconds')+"Z")
+                    "dateString": to_ns_datestring(i["t"])
                 }
                 list_dict.append(entry_dict)
                 count +=1
-        return list_dict
-
-    except Exception as error:
-        print("Error reading glucoseInfos:", error)
+        except Exception as error:
+            print("Error reading glucoseInfos entry:", error)
+    return list_dict
 
 
 def process_json_data(data,last_date):
@@ -148,7 +163,7 @@ def process_json_data(data,last_date):
     try:
         list_data = flatten_list(recursively_get_glucoseinfos(data,'glucoseInfos'))
         if len(list_data) > 0:
-            list_dict = process_json_data_prepare_entries(list_data,last_date,list_dict)
+            process_json_data_prepare_entries(list_data,last_date,list_dict)
         else:
             print("Glucose info list empty. Set up a CGM to start.")
     except Exception as error:
@@ -158,11 +173,10 @@ def process_json_data(data,last_date):
 
     if len(list_dict) > 0:
         print("Uploading", len(list_dict), "entry(ies)...")
-        upload_json = json.loads(json.dumps(list_dict))
-        upload_entry(upload_json,ns_header,len(list_dict))
-    elif len(list_dict) == 0:
+        upload_entry(list_dict,ns_header,len(list_dict))
+    else:
         print("No new entry found.")
-    
+
 
 def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
     url = ns_url+"api/v1/entries"
@@ -171,9 +185,11 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
         print("Nightscout POST entries:", r.status, r.reason)
         print(n, "entry(ies) uploaded.")
     else:
-        print("POST Failed.", r.status, r.reason)
+        print("POST Failed.", r.status, r.reason, r.data[:500])
 
 # Nightscout treatment
+# WORK IN PROGRESS. Nothing below is wired into main() yet, and the
+# uploader_sensorstart flag that will gate it is currently unused.
 # get last sensor start date
 def get_last_treatment_sensorstart_date(header):
     url = ns_url+"api/v1/treatments.json?count=1&find[eventType]=Sensor Start&find[enteredBy]="+ns_uploder+"&find[created_at][$gte]=1970"
@@ -181,21 +197,23 @@ def get_last_treatment_sensorstart_date(header):
     # print(r.status,r.reason,json.loads(r.data))
     try:
         data = json.loads(r.data)
-        print("Nightscout get last sensor start date:", r.status , r.reason)
-        if data == []:
-            print("Last sensor date: no data")
-            return "0"
-        else:
-            print("Last sensor date:", data[0]["created_at"])
-            return data[0]["created_at"]
     except json.JSONDecodeError:
-        content_type = r.headers.get('Content-Type')
-        print("Failed. Content Type" + content_type)
+        print("Nightscout response was not JSON.", r.status, r.reason,
+              "Content Type", r.headers.get('Content-Type'))
+        return None
+
+    print("Nightscout get last sensor start date:", r.status , r.reason)
+    if data == []:
+        print("Last sensor date: no data")
+        return "0"
+    else:
+        print("Last sensor date:", data[0]["created_at"])
+        return data[0]["created_at"]
 
 def process_json_data_prepare_treatment_sensorstart(item,last_date,count,list_dict): # item type = dict
     try:
         if uploader_max_entries !=0 and count >= uploader_max_entries:
-            return
+            return count,list_dict
         if item["GlucoseEntryDateTime"]>last_date or uploader_all_data==True:
             entry_dict = {
                 "eventType": "BG Check",
@@ -210,3 +228,4 @@ def process_json_data_prepare_treatment_sensorstart(item,last_date,count,list_di
         return count,list_dict
     except Exception as error:
         print("Error processing BloodGlucose:", error)
+        return count,list_dict
