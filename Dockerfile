@@ -12,7 +12,7 @@ COPY requirements.txt .
 #install dependencies
 RUN pip install -r requirements.txt
 
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 COPY . .
 
