@@ -1,80 +1,64 @@
 import os
 import sys
+# import docker
 
 # Initilisation for local python script
+# ss_url = ""
 # ss_token = ""
-# ss_region = "CN"
 # ns_url = ""
 # ns_api_secret= "" #api_secret
-# uploader_sensorstart = False
 # uploader_interval = 5 #mins
 # uploader_max_entries = 0 # 0 to disable.
+# uploader_all_data = False
+# retries = 10
+# timeout = 10
+
+# Environment variable readers.
+# A bare "except" here would also swallow KeyboardInterrupt and SystemExit, and
+# str/int/bool each need different handling, so read them explicitly instead.
+def env_str(name, default=None, required=False):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        if required:
+            sys.exit(name + " required. Pass it as an Environment Variable.")
+        return default
+    return value
+
+
+def env_int(name, default):
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    try:
+        return int(value)
+    except ValueError:
+        sys.exit(name + " must be a whole number. Got: " + value)
+
+
+def env_bool(name, default=False):
+    # bool("False") is True, so the string has to be compared, not cast.
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in ("true", "1", "yes", "on")
+
 
 # Initilisation for docker & ENV parameters overwrite
-try:
-    ss_token = str(os.environ['ss_token'])
-except:
-    sys.exit("ss_token required. Pass it as an Environment Variable.")
+ss_url = env_str('ss_url', required=True)
+ss_token = env_str('ss_token', required=True)
+ns_url = env_str('ns_url', required=True)
+ns_api_secret = env_str('ns_api_secret', required=True)
 
-try:
-    ss_region = str(os.environ['ss_region'])
-except:
-    ss_region = "CN"
+uploader_interval = env_int('uploader_interval', 5)
+uploader_max_entries = env_int('uploader_max_entries', 0)
+uploader_all_data = env_bool('uploader_all_data', False)
+uploader_sensorstart = env_bool('uploader_sensorstart', False)
 
-try:
-    ns_url = str(os.environ['ns_url'])
-except:
-    sys.exit("ns_url required. Pass it as an Environment Variable.")
+retries = env_int('retries', 10)
+timeout = env_int('timeout', 10)
 
-try:
-    ns_api_secret = str(os.environ['ns_api_secret'])
-except:
-    sys.exit("ns_api_secret required. Pass it as an Environment Variable.")
-
-try:
-    uploader_sensorstart = int(os.environ['uploader_sensorstart'])
-except:
-    uploader_sensorstart = False
-
-try:
-    uploader_interval = int(os.environ['uploader_interval'])
-except:
-    uploader_interval = 5
-
-try:
-    uploader_max_entries = int(os.environ['uploader_max_entries'])
-except:
-    uploader_max_entries = 0
-
-try:
-    uploader_all_data = bool(os.environ['uploader_all_data'])
-except:
-    uploader_all_data = False
-
-try:
-    retries = int(os.environ['retries'])
-except:
-    retries = 5
-
-try:
-    timeout = int(os.environ['timeout'])
-except:
-    timeout = 5
-
-try:
-    if os.environ['uploader_sensorstart'].lower() == "true":
-        uploader_sensorstart = True
-    else:
-        uploader_sensorstart = False
-except:
-    uploader_sensorstart = False
-
-#API URL
-region_list = ["CN","EU"]
-if ss_region.upper() not in region_list:
-    sys.exit(ss_region, "not found.")
-region_cn = "https://api.sisensing.com/follow/app/follow/myself/glucose/details/devices"
-region_eu = "https://cgm-ce.sisensing.com/user/app/follow/sharer"
+if uploader_interval <= 0:
+    sys.exit("uploader_interval must be greater than 0.")
 
 # uploader initialisation
 ns_uploder = "Nightscout-Sisensing-Uploader"
