@@ -1,11 +1,11 @@
-# docker compose up
-
-version: "3.1"
+# cp .env.example .env, fill it in, then: docker compose up -d
 
 services:
   app:
-    build: .
+    image: imlovinit1019/nightscout-sisensingcgm-uploader:latest
+    # to run your own changes instead of the published image, comment out the
+    # image line above and uncomment this one
+    # build: .
     container_name: nightscout-sisensingcgm-uploader
-    environment:
-      PYTHONUNBUFFERED: 1
-    command: python -u package/main.py
+    restart: unless-stopped
+    env_file: .env

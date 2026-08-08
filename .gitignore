@@ -13,6 +13,7 @@ ENV/
 # Secrets and local config
 .env
 .env.*
+!.env.example
 *_secret.txt
 .claude/settings.local.json
 

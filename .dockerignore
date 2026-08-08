@@ -23,9 +23,8 @@ coverage.xml
 .claude
 .env
 .env.*
-test
+sample_json
 docker-compose.yml
-docker-compose-dev.yml
 Dockerfile
 .dockerignore
 *.md
