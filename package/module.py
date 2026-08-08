@@ -1,5 +1,6 @@
 from setup import *
 import urllib3
+import urllib.parse
 import json
 import datetime
 
@@ -16,6 +17,17 @@ def to_utc_datetime(epoch_ms):
 
 def to_ns_datestring(epoch_ms):
     return to_utc_datetime(epoch_ms).isoformat(timespec='milliseconds').replace("+00:00", "Z")
+
+# Nightscout rewrites created_at to its own ISO string when it stores a treatment,
+# so read it back through a parser rather than string comparing what we posted.
+def from_ns_datestring(value):
+    try:
+        parsed = datetime.datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return round(parsed.timestamp()*1000)
 
 # return last entry date. (Slice allows searching for modal times of day across days and months.)
 # Returns an epoch in milliseconds, or None if the response could not be read.
@@ -112,6 +124,29 @@ def recursively_get_glucoseinfos(search_dict, field):
                         fields_found.append(another_result)
     return fields_found
 
+# The 14 day API nests the device under data.glucoseDataList[], the 18 month one
+# under data.followedDeviceGlucoseDataPO, so find the block by a key it always
+# carries instead of hard coding either path. Descending stops at the block, so
+# the thousands of readings inside it are never walked.
+def recursively_get_device_blocks(search_dict):
+    if "deviceEnableTime" in search_dict:
+        return [search_dict]
+
+    blocks_found = []
+
+    for value in search_dict.values():
+
+        if isinstance(value, dict):
+            for result in recursively_get_device_blocks(value):
+                blocks_found.append(result)
+
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict):
+                    for another_result in recursively_get_device_blocks(item):
+                        blocks_found.append(another_result)
+    return blocks_found
+
 # recursive funtion to flatten nested list. NOT IN USE due to max recursion depth error.
 def recursively_flatten_list(x):
     if x == []:
@@ -187,14 +222,17 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
     else:
         print("POST Failed.", r.status, r.reason, r.data[:500])
 
-# Nightscout treatment
-# WORK IN PROGRESS. Nothing below is wired into main() yet, and the
-# uploader_sensorstart flag that will gate it is currently unused.
-# get last sensor start date
-def get_last_treatment_sensorstart_date(header):
-    url = ns_url+"api/v1/treatments.json?count=1&find[eventType]=Sensor Start&find[enteredBy]="+ns_uploder+"&find[created_at][$gte]=1970"
+# Nightscout treatments. Gated by uploader_sensor_events, off by default.
+# get the most recent treatment of one eventType posted by this uploader.
+# Nightscout sorts treatments by created_at descending by default, so count=1
+# returns the latest. Returns the treatment dict, or None if there is not one.
+def get_last_treatment(header,event_type):
+    query = urllib.parse.urlencode({"count": 1,
+                                    "find[eventType]": event_type,
+                                    "find[enteredBy]": ns_uploder,
+                                    })
+    url = ns_url+"api/v1/treatments.json?"+query
     r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
-    # print(r.status,r.reason,json.loads(r.data))
     try:
         data = json.loads(r.data)
     except json.JSONDecodeError:
@@ -202,30 +240,93 @@ def get_last_treatment_sensorstart_date(header):
               "Content Type", r.headers.get('Content-Type'))
         return None
 
-    print("Nightscout get last sensor start date:", r.status , r.reason)
-    if data == []:
-        print("Last sensor date: no data")
-        return "0"
+    print("Nightscout get last", event_type+":", r.status , r.reason)
+    if not isinstance(data, list) or data == []:
+        print("Last", event_type+": no data")
+        return None
     else:
-        print("Last sensor date:", data[0]["created_at"])
-        return data[0]["created_at"]
+        print("Last", event_type+":", data[0].get("created_at"))
+        return data[0]
 
-def process_json_data_prepare_treatment_sensorstart(item,last_date,count,list_dict): # item type = dict
+# deviceEnableTime is the sensor activation and is in SECONDS, unlike every other
+# timestamp in the Sisensing response. deviceLastTime is activation plus 14 days,
+# a schedule rather than an observation, so it is not used as an event time.
+def prepare_treatment_sensorstart(device):
+    if not device.get("deviceEnableTime"):
+        print("No deviceEnableTime in response. Skipping Sensor Start.")
+        return None
+    start_date = int(device["deviceEnableTime"])*1000
+    return {
+        "eventType": "Sensor Start",
+        "created_at": to_ns_datestring(start_date),
+        "notes": "Sisensing "+str(device.get("deviceName")),
+        "enteredBy": ns_uploder,
+    }
+
+# The response carries no stop time. Once a sensor ends, deviceStatus leaves 1 and
+# glucoseInfos empties, but latestGlucoseTime keeps the final reading, so that is
+# the stop. Readings can run hours past deviceLastTime, so the scheduled end is
+# not a substitute for it.
+def prepare_treatment_sensorstop(device):
+    status = device.get("deviceStatus")
+    if status is None or status == 1:
+        return None
+    if not device.get("latestGlucoseTime") or not device.get("deviceEnableTime"):
+        print("Sensor is not running but the response has no usable stop time.")
+        return None
+
+    stop_date = int(device["latestGlucoseTime"])
+    start_date = int(device["deviceEnableTime"])*1000
+    # a stop at or before the activation would be a bad read, not a short wear
+    if stop_date <= start_date:
+        print("Ignoring Sensor Stop, latestGlucoseTime is not after deviceEnableTime.")
+        return None
+
+    return {
+        "eventType": "Sensor Stop",
+        "created_at": to_ns_datestring(stop_date),
+        "notes": "Sisensing "+str(device.get("deviceName"))+", deviceStatus "+str(status),
+        "enteredBy": ns_uploder,
+    }
+
+# Nightscout upserts a treatment on eventType plus created_at when no identifier is
+# sent, so re-posting the same event overwrites it rather than duplicating it. The
+# check below only avoids a pointless POST on every run.
+def upload_treatment_if_new(treatment,header):
+    if treatment is None:
+        return
+    last = get_last_treatment(header,treatment["eventType"])
+    if last is not None and from_ns_datestring(last.get("created_at")) == from_ns_datestring(treatment["created_at"]):
+        print(treatment["eventType"], "already recorded at", treatment["created_at"])
+        return
+    print("Uploading", treatment["eventType"], "at", treatment["created_at"], "...")
+    upload_treatment([treatment],header)
+
+def upload_treatment(treatments_json,header): #treatments type = a list of dicts
+    url = ns_url+"api/v1/treatments"
+    r = urllib3.request("POST", url=url,headers=header, json = treatments_json, retries=retries, timeout=timeout)
+    if r.status == 200:
+        print("Nightscout POST treatments:", r.status, r.reason)
+    else:
+        print("POST Failed.", r.status, r.reason, r.data[:500])
+
+def process_sensor_events(data,header):
+    print("Processing sensor events...")
     try:
-        if uploader_max_entries !=0 and count >= uploader_max_entries:
-            return count,list_dict
-        if item["GlucoseEntryDateTime"]>last_date or uploader_all_data==True:
-            entry_dict = {
-                "eventType": "BG Check",
-                "created_at": datetime.datetime.fromisoformat(item["GlucoseEntryDateTime"]).isoformat(timespec="milliseconds")+"Z",
-                "glucose": item["GlucoseLevel"],
-                "glucoseType": "Finger",
-                "units": "mmol",
-                "enteredBy": ns_uploder,
-            }
-            list_dict.append(entry_dict)
-            count +=1
-        return count,list_dict
+        devices = recursively_get_device_blocks(data)
     except Exception as error:
-        print("Error processing BloodGlucose:", error)
-        return count,list_dict
+        print("Error reading device data from response json:", error)
+        return
+
+    if len(devices) == 0:
+        print("No device found in response. Set up a CGM to start.")
+        return
+    if len(devices) > 1:
+        print("Response holds", len(devices), "devices. Using the first.")
+
+    device = devices[0]
+    for prepare in (prepare_treatment_sensorstart, prepare_treatment_sensorstop):
+        try:
+            upload_treatment_if_new(prepare(device),header)
+        except Exception as error:
+            print("Error processing sensor event:", error)

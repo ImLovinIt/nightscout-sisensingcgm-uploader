@@ -28,8 +28,19 @@ The script takes the following environment variables
 | uploader_interval        | The time interval of requesting values from Sisensing. Default to 5 mins as Sisensing CGM only uploads every 5 mins.       | 5                                        |          |
 | uploader_max_entries     | Maximum number of entries to upload everytime. 0 to disable.                                                               | 0                                        |          |
 | uploader_all_data        | Upload all available data.                                                                                                 | False                                    |          |
+| uploader_sensor_events   | Post `Sensor Start` and `Sensor Stop` treatments alongside glucose entries. Off by default.                                 | False                                    |          |
 | retries                  | Number of retries for API request. Default to 10.                                                                          | 10                                       |          |
 | timeout                  | Timeout for each retry. Default to 10.                                                                                     | 10                                       |          |
+
+## Sensor treatments
+Set `uploader_sensor_events` to `True` to have the uploader record the sensor session in Nightscout as well as the readings.
+
+- `Sensor Start` is posted at `deviceEnableTime`, the sensor activation reported by Sisensing.
+- `Sensor Stop` is posted at `latestGlucoseTime`, the final reading, once Sisensing reports the sensor as no longer running (`deviceStatus` other than `1`). The response carries no explicit stop time, and readings can continue for a few hours past the scheduled 14 day end, so the last reading is used rather than the schedule.
+
+Both are posted with `enteredBy` set to the uploader, and are skipped when Nightscout already holds that event at that time. Nightscout also upserts treatments on event type plus timestamp, so a repeat post overwrites rather than duplicates.
+
+Note that Nightscout's Sensor Age (SAGE) pill reads `Sensor Start` and `Sensor Change` only, and warns on Dexcom style thresholds by default. For a 14 day sensor, set `SAGE_INFO`, `SAGE_WARN` and `SAGE_URGENT` on your Nightscout instance to roughly `312`, `332` and `334` hours.
 
 ## IMPORTANT for Azure free tier users
 Enable `server side retry` to prevent rate-limiting errors for Azure Cosmos DB for MongoDB operations. Follow link below for details.

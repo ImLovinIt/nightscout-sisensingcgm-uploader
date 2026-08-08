@@ -52,7 +52,9 @@ ns_api_secret = env_str('ns_api_secret', required=True)
 uploader_interval = env_int('uploader_interval', 5)
 uploader_max_entries = env_int('uploader_max_entries', 0)
 uploader_all_data = env_bool('uploader_all_data', False)
-uploader_sensorstart = env_bool('uploader_sensorstart', False)
+# One switch for both Sensor Start and Sensor Stop treatments. uploader_sensorstart
+# was the earlier name for this and was never wired up, so it is still accepted.
+uploader_sensor_events = env_bool('uploader_sensor_events', env_bool('uploader_sensorstart', False))
 
 retries = env_int('retries', 10)
 timeout = env_int('timeout', 10)

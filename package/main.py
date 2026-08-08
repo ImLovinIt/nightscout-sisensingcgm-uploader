@@ -71,6 +71,13 @@ def main():
             except Exception as error:
                 print("Error processing glucose data:", error)
 
+            # sensor treatments are optional and must never cost a glucose upload
+            if uploader_sensor_events:
+                try:
+                    process_sensor_events(ss_data,ns_header)
+                except Exception as error:
+                    print("Error processing sensor events:", error)
+
     except Exception as error:
         print("Unexpected error during run:", error)
 
