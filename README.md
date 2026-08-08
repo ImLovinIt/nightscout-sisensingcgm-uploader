@@ -124,7 +124,16 @@ docker compose logs -f
 
 It pulls the published image, restarts unless you stop it, and reads `.env`. To run your own changes instead, swap the `image:` line for `build: .` as noted in the file.
 
-### Option 3. Python directly
+### Option 3. Portainer
+`docker-compose-portainer.yml` is the Compose file adapted for a Portainer stack. Go to Stacks, Add stack, Web editor, paste it in, then supply the four required values under Environment variables, either one at a time or with `Load variables from .env file` using a filled in copy of `.env.example`.
+
+Portainer substitutes those values into the `${...}` entries when it deploys and leaves the stack definition as written, so your token and API secret are not stored in the compose file itself.
+
+Use that file rather than `docker-compose.yml`, which reads `env_file: .env`. A stack defined in the browser has no such file beside it.
+
+If a required variable is missing, the container exits with `ss_url required. Pass it as an Environment Variable.` and the restart policy will keep retrying, so check the stack logs if it will not stay up.
+
+### Option 4. Python directly
 The only dependency is `urllib3`. Python 3.10 or newer is required, as the script uses structural pattern matching.
 
 ```
@@ -160,7 +169,7 @@ WantedBy=multi-user.target
 
 Then `sudo systemctl enable --now sisensing-uploader`, and read the output with `journalctl -u sisensing-uploader -f`.
 
-### Option 4. Managed container hosts
+### Option 5. Managed container hosts
 Northflank, Fly.io, Railway, Koyeb and similar platforms will run the image, as will the Container Manager on a Synology NAS or the Docker plugin on unRAID.
 
 Two things to watch for:

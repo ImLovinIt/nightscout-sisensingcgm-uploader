@@ -23,7 +23,7 @@ coverage.xml
 .claude
 .env
 .env.*
-test
+sample_json
 docker-compose.yml
 Dockerfile
 .dockerignore

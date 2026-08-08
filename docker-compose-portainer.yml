@@ -1,0 +1,36 @@
+# Portainer stack. Stacks > Add stack > Web editor, then paste this in.
+#
+# Supply the four required values under "Environment variables" in the Portainer
+# UI, either one at a time or with "Load variables from .env file" using a filled
+# in copy of .env.example. Portainer substitutes them into the ${...} entries
+# below at deploy time and leaves this file as written, so the values never sit
+# in the stack definition.
+#
+# Docs: https://docs.portainer.io/user/docker/stacks/add
+
+services:
+  app:
+    image: imlovinit1019/nightscout-sisensingcgm-uploader:latest
+    container_name: nightscout-sisensingcgm-uploader
+    restart: unless-stopped
+    environment:
+      ss_url: ${ss_url}
+      ss_token: ${ss_token}
+      ns_url: ${ns_url}
+      ns_api_secret: ${ns_api_secret}
+      # Optional. The uploader applies its own defaults, so leave these out
+      # unless you want to change one. Add the variable in Portainer first,
+      # otherwise the stack deploys with an empty value.
+      # uploader_interval: ${uploader_interval}
+      # uploader_max_entries: ${uploader_max_entries}
+      # uploader_all_data: ${uploader_all_data}
+      # uploader_sensor_events: ${uploader_sensor_events}
+      # retries: ${retries}
+      # timeout: ${timeout}
+
+# Deploying to a Swarm rather than standalone Docker? Swarm ignores restart: and
+# does not support container_name. Drop both and use this instead:
+#
+#    deploy:
+#      restart_policy:
+#        condition: any
