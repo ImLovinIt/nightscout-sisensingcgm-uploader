@@ -64,7 +64,7 @@ https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/prevent-rate-limiting-
 - Install the required certificate as per the packet capture app instructions.
 - Open the Sisensing app while the capture is running.
 - Open any captured request to `api.sisensing.com` that returned `200 OK`. There is no need to hunt for a particular address, the same token is sent with all of them.
-- Under `Request header`, find `Authorization:Bearer abcd...1234`. `abcd...1234` is your `ss_token`.
+- Under `Request header`, find `Authorization:Bearer abcd...1234`. `abcd...1234` is your `ss_token`. Do not include the word `Bearer`.
 - You do not need to find your `ss_url` in the capture. Use the address for your model from Endpoints above.
 - If Sisensing app is reinstalled or logged in on another device with the same phone number, you may need to repeat the above step.
 
