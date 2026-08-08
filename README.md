@@ -85,9 +85,87 @@ You might also use an online tool to generate your hash, e.g. https://codebeauti
 
 Credit to https://github.com/timoschlueter/nightscout-librelink-up
 
-## Deployment - Docker
-
-Docker Hub
-https://hub.docker.com/r/imlovinit1019/nightscout-sisensingcgm-uploader
+## Deployment
+The uploader is one long running process. It opens no ports, serves no pages, writes no files and needs no database. It wakes every `uploader_interval` minutes, reads from Sisensing and posts to Nightscout. Anything that can keep a small Python process alive will run it, so pick whichever of the following suits the hardware you already have.
 
 * **API secret and token are passed as Environment Variables.** If you have security concerns, please stop using this script or fork this repository to make improvements. (Docker swarm mode may be required to use secrets.)
+
+Keep your credentials in a file rather than on the command line, so they do not end up in your shell history:
+
+```
+cp .env.example .env
+chmod 600 .env
+```
+
+Then fill in `.env`. The same file works for Docker, Docker Compose and systemd.
+
+### Option 1. Docker
+Image: https://hub.docker.com/r/imlovinit1019/nightscout-sisensingcgm-uploader
+
+```
+docker run -d \
+  --name nightscout-sisensingcgm-uploader \
+  --restart unless-stopped \
+  --env-file .env \
+  imlovinit1019/nightscout-sisensingcgm-uploader:latest
+```
+
+Follow it with `docker logs -f nightscout-sisensingcgm-uploader`. A healthy run prints the last entry date, the Sisensing response status and how many entries were uploaded.
+
+Published tags are `latest`, `2.0`, `1.1` and `1.0`, all built for `linux/amd64`. On an arm host such as a Raspberry Pi, build the image yourself with `docker build -t nightscout-sisensingcgm-uploader .` and run that, or use Option 3.
+
+### Option 2. Docker Compose
+`docker-compose.yml` in this repository is ready to use once `.env` exists.
+
+```
+docker compose up -d
+docker compose logs -f
+```
+
+It pulls the published image, restarts unless you stop it, and reads `.env`. To run your own changes instead, swap the `image:` line for `build: .` as noted in the file.
+
+### Option 3. Python directly
+The only dependency is `urllib3`. Python 3.10 or newer is required, as the script uses structural pattern matching.
+
+```
+git clone https://github.com/ImLovinIt/nightscout-sisensingcgm-uploader.git
+cd nightscout-sisensingcgm-uploader
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+set -a; . ./.env; set +a
+python -u package/main.py
+```
+
+To keep it running after you log out, on a Raspberry Pi or any systemd machine, save this as `/etc/systemd/system/sisensing-uploader.service`, adjusting the user and paths:
+
+```
+[Unit]
+Description=Nightscout Sisensing CGM Uploader
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/nightscout-sisensingcgm-uploader
+EnvironmentFile=/opt/nightscout-sisensingcgm-uploader/.env
+ExecStart=/opt/nightscout-sisensingcgm-uploader/.venv/bin/python -u package/main.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then `sudo systemctl enable --now sisensing-uploader`, and read the output with `journalctl -u sisensing-uploader -f`.
+
+### Option 4. Managed container hosts
+Northflank, Fly.io, Railway, Koyeb and similar platforms will run the image, as will the Container Manager on a Synology NAS or the Docker plugin on unRAID.
+
+Two things to watch for:
+
+- Deploy it as a **worker or background service**, not a web service. The uploader listens on no port, so a web service plan may fail its health checks or idle the container to sleep.
+- The published image is amd64 only, so either choose an amd64 machine type or point the platform at this repository and let it build.
+
+Set the environment variables through the platform's own secrets or variables UI rather than baking them into an image.

@@ -25,7 +25,6 @@ coverage.xml
 .env.*
 test
 docker-compose.yml
-docker-compose-dev.yml
 Dockerfile
 .dockerignore
 *.md
