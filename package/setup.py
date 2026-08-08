@@ -49,6 +49,22 @@ ss_token = env_str('ss_token', required=True)
 ns_url = env_str('ns_url', required=True)
 ns_api_secret = env_str('ns_api_secret', required=True)
 
+# Every Nightscout call concatenates a path straight onto ns_url, so a missing
+# trailing slash turns https://host + api/v1/entries into https://hostapi/v1/entries
+# and the whole run fails on DNS. Guarantee the separator here instead of trusting
+# the variable, and strip stray whitespace while at it.
+ns_url = ns_url.strip().rstrip("/")+"/"
+# ss_url is sent exactly as captured and never has a path appended, so it is left
+# alone. The two documented endpoints differ on the trailing slash.
+ss_url = ss_url.strip()
+
+# urllib3 cannot request a schemeless URL, and the failure it raises is not obvious,
+# so say so plainly at startup.
+# underscore names so "from setup import *" does not export the loop variables
+for _name, _value in (("ns_url", ns_url), ("ss_url", ss_url)):
+    if not _value.lower().startswith(("http://", "https://")):
+        sys.exit(_name + " must start with http:// or https://. Got: " + _value)
+
 uploader_interval = env_int('uploader_interval', 5)
 uploader_max_entries = env_int('uploader_max_entries', 0)
 uploader_all_data = env_bool('uploader_all_data', False)

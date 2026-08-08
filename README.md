@@ -1,9 +1,8 @@
 # Nightscout Sisensing CGM Uploader
 Script written in python to periodically upload Sisensing (SiBionics) CGM (CG1) glucose data to Nightscout.
 
-## V2 Update
-It looks like Sisensing has changed the bearer token verification. I can no longer keep a valid token after retrieving the token from the follower phone and logging back into the master phone with the same mobile number.
-The current solution is to have two Chinese phone numbers log in each master phone and follower phone. This will change the API address with each URL having a unique follower ID assigned to it.
+## Update
+One phone is all that is needed. The `myself` endpoints listed below return your own device data directly, so there is no second phone and no second mobile number involved.
 
 *Only tested with the Chinese models and API. A Chinese mobile number is required to sign up.
 
@@ -18,19 +17,32 @@ App Tested:
 <em>硅基动感</em>
 
 ## Configuration
-The script takes the following environment variables
-| Variable                 | Description                                                                                                                | Example                                  | Required |
-|--------------------------|----------------------------------------------------------------------------------------------------------------------------|------------------------------------------|----------|
-| ss_url                   | Sisensing API URL with a unique user/follower ID                                            | https://api.sisensing.com/follow/app/follow/1234567890/glucose https://api.sisensing.com/lite-sense-app/follow/info?followId=1234567890                               |   X      |
-| ss_token                 | Sisensing API Bearer Token                                                                                                 | abcdefgh-1234-ijkl-5678-mnopqrstuvwx     | X        |
-| ns_url                   | Hostname of the Nightscout instance with http:// or https:// and end with /                                                | https://nightscout.azurewebsites.net/    | X        |
-| ns_api_secret            | SHA1 Hash of Nightscout access toke                                                                                        | 162f14de46149447c3338a8286223de407e3b2fa | X        |
-| uploader_interval        | The time interval of requesting values from Sisensing. Default to 5 mins as Sisensing CGM only uploads every 5 mins.       | 5                                        |          |
-| uploader_max_entries     | Maximum number of entries to upload everytime. 0 to disable.                                                               | 0                                        |          |
-| uploader_all_data        | Upload all available data.                                                                                                 | False                                    |          |
-| uploader_sensor_events   | Post `Sensor Start` and `Sensor Stop` treatments alongside glucose entries. Off by default.                                 | False                                    |          |
-| retries                  | Number of retries for API request. Default to 10.                                                                          | 10                                       |          |
-| timeout                  | Timeout for each retry. Default to 10.                                                                                     | 10                                       |          |
+The script takes the following environment variables.
+
+### Required
+
+| Variable        | Description                                   | Example                                  |
+|-----------------|-----------------------------------------------|------------------------------------------|
+| `ss_url`        | Sisensing API URL. See Endpoints below.       | see Endpoints                            |
+| `ss_token`      | Sisensing API bearer token.                   | abcdefgh-1234-ijkl-5678-mnopqrstuvwx     |
+| `ns_url`        | Nightscout host, with scheme. Trailing / optional. | https://nightscout.example.com/     |
+| `ns_api_secret` | SHA1 hash of a Nightscout access token.       | 162f14de46149447c3338a8286223de407e3b2fa |
+
+### Optional
+
+| Variable                 | Description                                        | Default |
+|--------------------------|----------------------------------------------------|---------|
+| `uploader_interval`      | Minutes between polls of Sisensing.                | `5`     |
+| `uploader_max_entries`   | Cap on entries per upload. `0` disables the cap.   | `0`     |
+| `uploader_all_data`      | Upload every available reading, not just new ones. | `False` |
+| `uploader_sensor_events` | Post Sensor Start and Sensor Stop treatments.      | `False` |
+| `retries`                | Retries per API request.                           | `10`    |
+| `timeout`                | Timeout in seconds per retry.                      | `10`    |
+
+#### Endpoints
+Pick the one matching your model:
+- A4, 14 days: `https://api.sisensing.com/follow/app/follow/myself/glucose/details/devices`
+- 18 months: `https://api.sisensing.com/lite-sense-app/follow/myself/glucose/`
 
 ## Sensor treatments
 Set `uploader_sensor_events` to `True` to have the uploader record the sensor session in Nightscout as well as the readings.
@@ -47,14 +59,13 @@ Enable `server side retry` to prevent rate-limiting errors for Azure Cosmos DB f
 https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/prevent-rate-limiting-errors  
 
 ## Obtain Sisensing API Bearer Token
-- Use your main phone to log in with the first phone number and select the master device mode to read data from CGM.
-- Use your spare phone to log in with the second phone number and select follower mode to retrieve history data stored on the server.
-- Install a packet capture app on your spare phone. eg. Http traffic capture for iOS. PCAPdroid for andriod.
+- Log in to the Sisensing app on your phone and pair your CGM as usual.
+- Install a packet capture app on the same phone. eg. Http traffic capture for iOS. PCAPdroid for andriod.
 - Install the required certificate as per the packet capture app instructions.
-- Scan Sisensing app on your spare phone.
-- Find an entry with API address that looks like this `https://api.sisensing.com/follow/app/follow/1234567890/glucose` for A4 (14 days) models or `https://api.sisensing.com/lite-sense-app/follow/info?followId=1234567890` for the 18 months model. This is your `ss_url`.
-- Under `Response` json file, you should see a list of glucose entries. Congrats. You find the correct one.
+- Open the Sisensing app while the capture is running.
+- Open any captured request to `api.sisensing.com` that returned `200 OK`. There is no need to hunt for a particular address, the same token is sent with all of them.
 - Under `Request header`, find `Authorization:Bearer abcd...1234`. `abcd...1234` is your `ss_token`.
+- You do not need to find your `ss_url` in the capture. Use the address for your model from Endpoints above.
 - If Sisensing app is reinstalled or logged in on another device with the same phone number, you may need to repeat the above step.
 
 ## Hashing Nightscout API token
