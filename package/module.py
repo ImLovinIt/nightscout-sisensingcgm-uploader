@@ -227,9 +227,14 @@ def upload_entry(entries_json,header,n): #entries tpye = a list of dicts
 # Nightscout sorts treatments by created_at descending by default, so count=1
 # returns the latest. Returns the treatment dict, or None if there is not one.
 def get_last_treatment(header,event_type):
+    # Nightscout constrains any query carrying no date clause to the last four days
+    # (lib/server/query.js, deltaAgo = TWO_DAYS * 2). A sensor start is up to 14 days
+    # old, so without this the lookup returns nothing and the treatment is re-posted
+    # on every run.
     query = urllib.parse.urlencode({"count": 1,
                                     "find[eventType]": event_type,
                                     "find[enteredBy]": ns_uploder,
+                                    "find[created_at][$gte]": "1970",
                                     })
     url = ns_url+"api/v1/treatments.json?"+query
     r = urllib3.request("GET", url=url,headers=header, retries=retries, timeout=timeout)
