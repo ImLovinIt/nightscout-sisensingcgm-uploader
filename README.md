@@ -47,7 +47,7 @@ Pick the one matching your model:
 ## Sensor treatments
 Set `uploader_sensor_events` to `True` to have the uploader record the sensor session in Nightscout as well as the readings.
 
-- `Sensor Start` is posted at `deviceEnableTime`, the sensor activation reported by Sisensing.
+- `Sensor Start` is posted at the activation worked out from the readings themselves. Each reading carries `i`, a minute index counted from activation, so `t - i` minutes gives the start from any reading in the response. Sisensing's own `deviceEnableTime` is not used: it is skewed by the local UTC offset minus 8 hours, which put it 2 hours late under AEST and 3 hours late under AEDT, late enough to post the start after the session's first reading. A sensor whose readings have all aged out of the response yields no `Sensor Start`.
 - `Sensor Stop` is posted at `latestGlucoseTime`, the final reading, once Sisensing reports the sensor as no longer running (`deviceStatus` other than `1`). The response carries no explicit stop time, and readings can continue for a few hours past the scheduled 14 day end, so the last reading is used rather than the schedule.
 
 Both are posted with `enteredBy` set to the uploader, and are skipped when Nightscout already holds that event at that time. Nightscout also upserts treatments on event type plus timestamp, so a repeat post overwrites rather than duplicates.
