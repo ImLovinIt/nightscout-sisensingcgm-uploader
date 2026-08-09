@@ -253,14 +253,36 @@ def get_last_treatment(header,event_type):
         print("Last", event_type+":", data[0].get("created_at"))
         return data[0]
 
-# deviceEnableTime is the sensor activation and is in SECONDS, unlike every other
-# timestamp in the Sisensing response. deviceLastTime is activation plus 14 days,
-# a schedule rather than an observation, so it is not used as an event time.
-def prepare_treatment_sensorstart(device):
-    if not device.get("deviceEnableTime"):
-        print("No deviceEnableTime in response. Skipping Sensor Start.")
+# deviceEnableTime claims to be the activation and is in SECONDS, unlike every
+# other timestamp in the response, but it is skewed and cannot be used as an event
+# time. In sample_json/response_14d.json it sits 3h 1m after the sensor really
+# started; a live 2026-08-09 session put it 2h 1m after, an hour that is exactly
+# the AEDT to AEST change. The gap tracks the local UTC offset minus 8 hours, so
+# the field reads like a wall clock rendered in UTC+8 rather than a true epoch.
+#
+# Every reading instead carries "i", a minute index counted from activation, so
+# t - i*60000 recovers the real start from any reading with no timezone involved.
+# Readings disagree by up to a minute, so take the median rather than an edge:
+# in the 502 reading sample the median lands on the value 370 of them agree on.
+def sensor_activation_from_readings(device):
+    bases = []
+    for reading in flatten_list(recursively_get_glucoseinfos(device,'glucoseInfos')):
+        try:
+            bases.append(int(reading["t"]) - int(reading["i"])*60000)
+        except (TypeError, ValueError, KeyError):
+            continue
+    if len(bases) == 0:
         return None
-    start_date = int(device["deviceEnableTime"])*1000
+    bases.sort()
+    return bases[len(bases)//2]
+
+# deviceLastTime is activation plus 14 days, a schedule rather than an observation,
+# so it is not used as an event time either.
+def prepare_treatment_sensorstart(device):
+    start_date = sensor_activation_from_readings(device)
+    if start_date is None:
+        print("No glucose reading carries an index. Skipping Sensor Start.")
+        return None
     return {
         "eventType": "Sensor Start",
         "created_at": to_ns_datestring(start_date),
@@ -276,15 +298,21 @@ def prepare_treatment_sensorstop(device):
     status = device.get("deviceStatus")
     if status is None or status == 1:
         return None
-    if not device.get("latestGlucoseTime") or not device.get("deviceEnableTime"):
+    if not device.get("latestGlucoseTime"):
         print("Sensor is not running but the response has no usable stop time.")
         return None
 
     stop_date = int(device["latestGlucoseTime"])
-    start_date = int(device["deviceEnableTime"])*1000
+    # An expired sensor empties glucoseInfos, so the index is usually gone by the
+    # time a stop is posted. Fall back to deviceEnableTime here: it is skewed by a
+    # couple of hours, which is fine for a floor on a 14 day wear, and only a
+    # sanity check hangs on it. Without either the floor is skipped, not the stop.
+    start_date = sensor_activation_from_readings(device)
+    if start_date is None and device.get("deviceEnableTime"):
+        start_date = int(device["deviceEnableTime"])*1000
     # a stop at or before the activation would be a bad read, not a short wear
-    if stop_date <= start_date:
-        print("Ignoring Sensor Stop, latestGlucoseTime is not after deviceEnableTime.")
+    if start_date is not None and stop_date <= start_date:
+        print("Ignoring Sensor Stop, latestGlucoseTime is not after the activation.")
         return None
 
     return {
